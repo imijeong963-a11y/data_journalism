@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>익숙한 동네에서, 혼자 — 서울 독거노인의 생활 인프라 격차</title>
+
+  <!-- Leaflet 1.9.4 (choropleth 지도) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Plotly 2.35.2 (차트) -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    /* ── RESET ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    /* ── BASE ── */
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+      background: #ffffff;
+      color: #1a1a2e;
+      line-height: 1.9;
+    }
+
+    /* ── HEADER ── */
+    .story-header {
+      background: linear-gradient(150deg, #0b1a38 0%, #1a3a6e 60%, #0f2a55 100%);
+      color: #fff;
+      padding: 88px 24px 64px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .story-header::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    .story-header .inner { position: relative; z-index: 1; }
+    .kicker {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #7eb3f0;
+      margin-bottom: 20px;
+      display: inline-block;
+      border: 1px solid #7eb3f0;
+      padding: 4px 14px;
+      border-radius: 20px;
+    }
+    .story-header h1 {
+      font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 22px;
+      word-break: keep-all;
+      letter-spacing: -0.02em;
+    }
+    .deck {
+      font-size: clamp(0.95rem, 2vw, 1.1rem);
+      color: #a8c8f0;
+      max-width: 700px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+      word-break: keep-all;
+    }
+    .byline-bar {
+      font-size: 0.8rem;
+      color: #5a80a8;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    .byline-bar span::before { content: ''; }
+    .byline-bar span + span::before { content: '·'; margin-right: 20px; }
+
+    /* ── LAYOUT ── */
+    .text-block {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .graphic-wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* ── SECTIONS ── */
+    section { padding: 52px 0; }
+    section + section { border-top: 1px solid #e8ecf2; }
+
+    /* ── TYPOGRAPHY ── */
+    p {
+      font-size: 1.05rem;
+      color: #2a2a3a;
+      margin-bottom: 1.5em;
+      word-break: keep-all;
+      text-align: justify;
+    }
+    p:last-child { margin-bottom: 0; }
+
+    .lead-para {
+      font-size: 1.15rem;
+      color: #1a1a2e;
+      line-height: 2;
+    }
+
+    /* Section titles */
+    .section-title {
+      font-size: clamp(1.25rem, 3vw, 1.6rem);
+      font-weight: 800;
+      color: #0b1a38;
+      margin-bottom: 28px;
+      padding-bottom: 14px;
+      border-bottom: 3px solid #1a3a6e;
+      word-break: keep-all;
+      line-height: 1.4;
+    }
+    .interview-heading {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      font-weight: 700;
+      color: #0b1a38;
+      margin-bottom: 28px;
+      background: #f0f5fc;
+      border-left: 5px solid #1a3a6e;
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      word-break: keep-all;
+      line-height: 1.5;
+    }
+
+    /* ── PHOTOS ── */
+    .photo-compare {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 32px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .photo-compare figure { margin: 0; }
+    .photo-compare img {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      border-radius: 8px;
+      display: block;
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
+    }
+    .photo-single {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 0 24px 32px;
+    }
+    .photo-single img {
+      width: 100%;
+      max-height: 480px;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.12);
+    }
+    figcaption {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    /* ── GRAPHIC CARDS ── */
+    .graphic-card {
+      background: #f7f9fc;
+      border: 1px solid #dde4ef;
+      border-radius: 12px;
+      padding: 24px 22px 18px;
+      margin: 8px 0 32px;
+    }
+    .graphic-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: #1a3a6e;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .graphic-headline {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #0b1a38;
+      margin-bottom: 18px;
+    }
+    .data-note {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #e0e6ef;
+    }
+
+    /* ── MAP ── */
+    #elderly-map {
+      width: 100%;
+      height: 560px;
+      border-radius: 10px;
+    }
+
+    /* Map legend */
+    .map-legend {
+      display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .map-legend-label { font-size: 0.8rem; color: #555; font-weight: 700; padding-top: 2px; }
+    .map-legend-scale { display: flex; gap: 6px; }
+    .map-swatch { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .map-swatch span:first-child { width: 40px; height: 16px; border-radius: 3px; display: block; }
+    .map-swatch span:last-child { font-size: 0.68rem; color: #666; white-space: nowrap; text-align: center; }
+    .map-legend-other { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #888; margin-left: 4px; padding-top: 2px; }
+    .map-legend-other-box { width: 22px; height: 14px; background: #d4dbe8; border: 1px solid #bbb; border-radius: 2px; }
+
+    /* Leaflet tooltip */
+    .leaflet-tooltip.info-tip {
+      background: #fff;
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.18);
+      padding: 0;
+      pointer-events: none;
+    }
+    .leaflet-tooltip.info-tip::before { display: none; }
+    .tip-box { width: 270px; padding: 14px 16px; font-size: 13px; }
+    .tip-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; border-left: 4px solid #2171b5; padding-left: 8px; }
+    .tip-box table { width: 100%; border-collapse: collapse; }
+    .tip-box td { padding: 3px 0; vertical-align: top; font-size: 13px; }
+    .tip-box td:first-child { color: #555; width: 105px; }
+    .tip-box td:last-child { font-weight: 600; color: #111; }
+    .tip-box hr { border: none; border-top: 1px solid #eee; margin: 9px 0; }
+    .tip-box .tip-analysis { font-size: 12px; color: #444; line-height: 1.6; }
+    .tip-box .tip-analysis b { display: block; margin-bottom: 3px; color: #222; font-size: 12px; }
+    .tip-box p { margin: 0; }
+
+    /* ── COMMENTS CHART CONTROLS ── */
+    .chart-controls {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .chart-controls label { font-size: 0.88rem; font-weight: 600; color: #444; }
+    .chart-controls select {
+      font-size: 0.88rem;
+      padding: 7px 34px 7px 12px;
+      border: 1px solid #c8d0df;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      min-width: 210px;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23555' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 11px center;
+    }
+    .chart-controls select:focus { outline: 2px solid #1a3a6e; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #0b1a38;
+      color: #4a6888;
+      text-align: center;
+      padding: 36px 24px;
+      font-size: 0.82rem;
+      margin-top: 60px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .photo-compare { grid-template-columns: 1fr; }
+      .photo-compare img { height: 220px; }
+      .story-header { padding: 56px 20px 48px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════ -->
+<header class="story-header">
+  <div class="inner">
+    <div class="kicker">데이터 저널리즘</div>
+    <h1>익숙한 동네에서, 혼자</h1>
+    <p class="deck">
+      서울 독거노인의 생활 인프라 격차 —<br>
+      독거노인이 가장 많은 곳일수록 의료·교통 인프라는 열악했다
+    </p>
+    <div class="byline-bar">
+      <span>2025년 6월</span>
+      <span>1조</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ SECTION 1: 도입 ══════════════════════════════════ -->
+  <section>
+    <div class="text-block">
+      <p class="lead-para">점심 시간이 지난 탑골공원은 비교적 한산했다. 공원 입구를 지나자 정자 주변으로 노인들이 앉아 있었다. 누군가는 휴대전화를 보고 있었고, 누군가는 아무 말 없이 시간을 보내고 있었다. 넓은 광장을 천천히 지나가는 사람도 보였다.</p>
+      <p>탑골공원은 오래전부터 노년층이 자주 찾는 공간으로 알려져 있다. 같은 장소를 기록한 과거 사진에는 광장 주변으로 더 많은 사람이 모여 있는 모습이 보인다. 반면 최근 촬영한 사진에서는 이전보다 사람이 줄어든 모습이 나타났다. 넓은 공간에는 여유가 생겼고, 일부 노인들은 정자 주변에 머물러 있었다.</p>
+    </div>
+
+    <!-- ▶ 사진 1·2 : 탑골공원 과거 / 현재 비교 -->
+    <div class="photo-compare">
+      <figure>
+        <img src="src/탑골공원_과거사진.jpg" alt="과거의 탑골공원" loading="lazy" />
+        <figcaption>▲ 과거의 탑골공원. 광장 주변으로 더 많은 사람이 모여 있는 모습이다.</figcaption>
+      </figure>
+      <figure>
+        <img src="src/탑골공원_현재사진.jpg" alt="현재의 탑골공원" loading="lazy" />
+        <figcaption>▲ 현재의 탑골공원. 예전보다 인원이 줄고 일부 노인들이 정자 주변에 머물고 있다.</figcaption>
+      </figure>
+    </div>
+
+    <div class="text-block">
+      <p>탑골공원은 여전히 노년층이 찾는 공간이다. 하지만 같은 공간이라도 시간이 지나면서 이용 모습은 달라지고 있었다. 노년기의 생활은 단순히 거주 공간만으로 설명하기 어렵다. 병원을 이용할 수 있는지, 복지시설이 가까운지, 이동이 편리한지도 일상에 영향을 준다.</p>
+      <p>그렇다면 서울의 노년 1인 가구는 지금 살고 있는 지역에서 계속 살아갈 수 있을까. 이번 취재는 이 질문에서 시작됐다.</p>
+    </div>
+  </section>
+
+  <!-- ══ SECTION 2: 데이터 분석 ════════════════════════════ -->
+  <section>
+    <div class="text-block">
+      <h2 class="section-title">서울 4개 자치구, 독거노인 밀집도와 인프라의 불일치</h2>
+
+      <p>서울의 노년 1인 가구는 더 이상 일부 지역만의 문제가 아니다. 혼자 사는 노인이 늘면서 고독사와 사회적 고립에 대한 우려도 커지고 있다. 하지만 문제는 단순히 '혼자 산다'는 사실에만 있지 않다. 노인이 지금 살고 있는 지역에서 계속 생활할 수 있는 조건이 갖춰져 있는지가 더 중요하다.</p>
+      <p>이번 취재는 서울의 주요 독거노인 밀집 지역을 중심으로 진행했다. 분석 대상은 노원구, 강서구, 송파구, 강북구다. 서울열린데이터광장 자료를 바탕으로 각 자치구의 독거노인 수와 전체 노인 대비 독거노인 비율을 비교했다. 병원, 약국, 노인복지시설, 지하철역 수 등 생활에 필요한 시설도 함께 살폈다.</p>
+    </div>
+
+    <!-- ▶ 그래픽 1 : 독거노인 밀집 지역 지도 -->
+    <div class="graphic-wrap">
+      <div class="graphic-card">
+        <div class="graphic-tag">그래픽 1</div>
+        <div class="graphic-headline">서울시 독거노인 밀집 지역과 생활 인프라 격차</div>
+
+        <div class="map-legend">
+          <span class="map-legend-label">독거노인 수</span>
+          <div class="map-legend-scale">
+            <div class="map-swatch"><span style="background:#084594"></span><span>36,839명<br>노원구</span></div>
+            <div class="map-swatch"><span style="background:#2171b5"></span><span>26,046명<br>강서구</span></div>
+            <div class="map-swatch"><span style="background:#4292c6"></span><span>25,889명<br>송파구</span></div>
+            <div class="map-swatch"><span style="background:#9ecae1"></span><span>20,398명<br>강북구</span></div>
+          </div>
+          <div class="map-legend-other"><div class="map-legend-other-box"></div>기타 자치구</div>
+        </div>
+
+        <div id="elderly-map"></div>
+        <p class="data-note">출처: 서울열린데이터광장 · 지도 위에 마우스를 올리면 구별 상세 정보가 표시됩니다.</p>
+      </div>
+    </div>
+
+    <div class="text-block">
+      <p>조사 결과 지역별 차이는 뚜렷했다. 노원구는 독거노인 수가 3만 6,839명으로 가장 많았다. 강서구는 2만 6,046명, 송파구는 2만 5,889명, 강북구는 2만 398명으로 나타났다. 전체 노인 대비 독거노인 비율도 지역마다 달랐다. 노원구는 36.4%로 가장 높았다. 강서구는 23.9%, 송파구는 22.5%, 강북구는 28.6%로 나타났다.</p>
+    </div>
+
+    <!-- ▶ 그래픽 2 : 전체 노인 대비 독거노인 비율 -->
+    <div class="graphic-wrap">
+      <div class="graphic-card">
+        <div class="graphic-tag">그래픽 2</div>
+        <div class="graphic-headline">전체 노인 대비 독거노인 비율 (%)</div>
+        <div id="ratio-chart"></div>
+        <p class="data-note">출처: 서울열린데이터광장</p>
+      </div>
+    </div>
+
+    <div class="text-block">
+      <p>생활 인프라에서도 차이가 보였다. 노원구에는 병원 21개, 약국 235개, 노인복지시설 161개, 지하철역 16개가 있었다. 강북구는 병원 17개, 약국 112개, 노인복지시설 104개, 지하철역 5개였다. 반면 송파구는 병원 44개, 약국 255개, 노인복지시설 134개, 지하철역 28개로 조사됐다. 강서구도 병원 42개, 약국 226개, 노인복지시설 141개, 지하철역 21개를 보유하고 있었다.</p>
+      <p>독거노인이 많은 지역과 생활 인프라가 충분한 지역은 완전히 일치하지 않았다. 독거노인 수가 많아도 병원이나 교통시설이 상대적으로 적은 곳이 있었다. 반대로 독거노인 비율은 낮지만 의료·교통 접근성이 비교적 좋은 곳도 있었다.</p>
+    </div>
+  </section>
+
+  <!-- ══ SECTION 3: 인터뷰 ══════════════════════════════════ -->
+  <section>
+    <div class="text-block">
+      <h2 class="interview-heading">"아는 길이 제일 편해요"…탑골공원 벤치에 앉은 노인들이 떠나지 않는 이유</h2>
+    </div>
+
+    <!-- ▶ 사진 3 : 박모씨 인터뷰 사진 -->
+    <figure class="photo-single">
+      <img src="src/인터뷰사진_박모씨.png" alt="탑골공원에서 만난 박모씨" loading="lazy" />
+      <figcaption>▲ 종로3가에 40년 넘게 거주한 박모씨(78). "몇 년 전에 집에서 넘어졌는데 한동안 일어나기 힘들었어요. 그때 죽을까 봐 무서웠죠"라고 말했다.</figcaption>
+    </figure>
+
+    <div class="text-block">
+      <p>초여름 햇살이 내리쬐던 오후, 서울 종로구 탑골공원 벤치에는 노인들이 삼삼오오 모여 앉아 있었다. 누군가는 말없이 햇볕을 쬐고 있었고, 공원 한쪽에서는 오랜 친구를 만난 듯 반갑게 인사를 나누는 목소리가 들렸다.</p>
+      <p>종로3가에서 50년 가까이 살아온 김모씨(76)는 "오래 살다 보니 시장도 익숙하고, 어디에 뭐가 있는지 다 아니까 편해요. 버스나 지하철 타기도 쉽고요"라고 말했다.</p>
+      <p>서울시가 초고령사회에 진입한 가운데, 많은 독거노인들은 여전히 자신이 살아온 동네를 떠나고 싶어 하지 않는다. 익숙한 생활환경과 편리한 교통, 오랜 시간 쌓인 기억 때문이다.</p>
+      <p>하지만 익숙한 동네가 모든 불편을 해결해 주는 것은 아니다. 김씨는 "장 보러 가거나 무거운 걸 들고 오는 게 힘들어요. 허리도 아프고 무릎도 안 좋아서 조금만 걸어도 쉬어야 해요"라고 말했다. 또 "병원은 가까운데 기계가 많고 절차가 복잡해서 혼자 가면 헷갈릴 때가 있어요"라며 디지털 환경에 대한 어려움도 털어놓았다.</p>
+      <p>종로3가에 40년 넘게 거주한 박모씨(78) 역시 "여기는 오래 살아서 아는 사람도 많고, 버스도 많고 지하철도 가까워요"라고 말했다. 그러나 그는 "몇 년 전에 집에서 넘어졌는데 한동안 일어나기 힘들었어요. 그때 죽을까 봐 무서웠죠"라며 혼자 사는 삶의 불안을 이야기했다.</p>
+      <p>두 사람 모두 교통과 의료 인프라에는 만족하고 있었지만, 가장 큰 걱정은 위급한 순간 곁에 아무도 없다는 점이었다. 그래서 두 사람이 공통적으로 바라는 것은 거창한 시설이 아닌, 노인들이 편하게 쉬고 이야기를 나눌 수 있는 공간이었다.</p>
+      <p>탑골공원은 단순한 공원이 아니다. 누군가에게는 무료한 하루를 채워주는 거실이고, 누군가에게는 외로움을 잠시 내려놓을 수 있는 사랑방이다. 독거노인들이 원하는 것은 거창한 복지가 아니라 익숙한 동네에서 안전하게 살아가며, 누군가와 연결될 수 있는 일상의 공간인지도 모른다.</p>
+      <p>그러나 독거노인 문제를 바라보는 시민들의 시선은 엇갈렸다. 일부 시민들은 독거노인 문제를 개인의 삶의 결과로 바라봤지만, 다른 한편에서는 국가와 지역사회가 돌봄의 책임을 함께 나눠야 한다는 의견도 적지 않았다. 댓글 분석 결과 '노인 개인책임론'이 50%로 가장 높은 비중을 차지했으며, '제도·국가 책임'을 강조하는 의견은 23%로 뒤를 이었다. 독거노인을 향한 공감과 정부 비판 의견도 일부 확인됐다.</p>
+    </div>
+
+    <!-- ▶ 그래픽 3 : 댓글 인식 유형 -->
+    <div class="graphic-wrap">
+      <div class="graphic-card">
+        <div class="graphic-tag">그래픽 3</div>
+        <div class="graphic-headline">독거노인 관련 댓글 인식 유형</div>
+        <div class="chart-controls">
+          <label for="comments-source">댓글 출처 선택</label>
+          <select id="comments-source"></select>
+        </div>
+        <div id="comments-chart"></div>
+        <p class="data-note">출처: 유튜브·네이트판 댓글 직접 분석</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SECTION 4: 전문가 분석 ════════════════════════════ -->
+  <section>
+    <div class="text-block">
+      <h2 class="section-title">지역사회가 돌봄의 빈자리를 채워야 한다</h2>
+
+      <p>전문가들은 이러한 문제의 배경으로 핵가족화와 가족 부양 기능 약화를 꼽는다. 산업화와 도시화가 진행되면서 홀로 생활하는 노인이 꾸준히 증가했고, 배우자 사망 이후 혼자 남겨진 노인들은 고독과 돌봄 공백의 위험에 놓이게 됐다.</p>
+      <p>복지 인프라의 불균형도 문제로 지적된다. 복지시설은 특정 지역에 집중된 반면, 실제 노인 인구가 많은 지역에는 시설과 서비스가 부족한 경우가 적지 않다. 서울 역시 자치구별 노인 인구 규모와 복지시설 분포에 차이가 있어 지역 간 인프라 격차가 나타나고 있다.</p>
+      <p>이에 전문가들은 노인이 시설이 아닌 자신이 살던 지역에서 안전하게 생활할 수 있도록 지역사회 중심의 돌봄 체계를 확대해야 한다고 강조한다. 방문요양과 방문간호 등 재가 서비스를 강화하고, 자치구별 수요를 고려한 맞춤형 복지 인프라를 확충하는 것이 초고령사회에 필요한 과제로 제시되고 있다.</p>
+      <p>이러한 문제는 한국만의 고민이 아니다. 이미 초고령사회에 진입한 일본과 중국은 지역사회 중심의 돌봄 체계를 통해 독거노인의 고립과 안전 문제를 해결하기 위한 다양한 시도를 이어가고 있다.</p>
+      <p>일본의 한 주택가에서는 지역 자원봉사자가 정기적으로 독거노인의 집을 찾아 안부를 확인한다. 일본은 고독사 문제에 대응하기 위해 지역포괄케어시스템을 구축해 노인들이 지역사회 안에서 지속적으로 돌봄을 받을 수 있도록 하고 있다. 중국 역시 지역 내 노인식당과 주간보호센터를 운영하고 방문 돌봄 서비스를 제공해, 노인들이 익숙한 거주지에서 생활을 이어가면서도 필요한 지원을 받을 수 있도록 돕고 있다.</p>
+      <p>두 나라의 사례는 노인이 살던 지역을 떠나지 않고도 안전하게 노후를 보낼 수 있도록 지역사회가 돌봄의 역할을 함께 나누고 있다는 점에서 공통점을 가진다.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>데이터 출처: 서울열린데이터광장 &nbsp;·&nbsp; 취재: 1조 &nbsp;·&nbsp; 2025년 6월</p>
+</footer>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS  —  각 그래픽을 IIFE로 격리해 변수 충돌 방지
+══════════════════════════════════════════════════════════ -->
+
+<!-- [1] 독거노인 밀집 지역 지도 (Leaflet choropleth) -->
+<script>
+(function () {
+  const areaData = {
+    "노원구": { elderlyNum:36839, elderly:"36,839명", hospital:"21개", pharmacy:"235개", welfare:"161개", subway:"16개", analysis:"독거노인 수가 가장 많지만 병원 수는 상대적으로 적게 나타난다." },
+    "강서구": { elderlyNum:26046, elderly:"26,046명", hospital:"42개", pharmacy:"226개", welfare:"141개", subway:"21개", analysis:"독거노인 수가 많지만 의료·복지 인프라는 비교적 확보된 지역이다." },
+    "송파구": { elderlyNum:25889, elderly:"25,889명", hospital:"44개", pharmacy:"255개", welfare:"134개", subway:"28개", analysis:"의료·교통 인프라가 비교적 풍부하지만 독거노인 수 역시 높은 편이다." },
+    "강북구": { elderlyNum:20398, elderly:"20,398명", hospital:"17개", pharmacy:"112개", welfare:"104개", subway:"5개",  analysis:"독거노인 밀집 지역이 존재하지만 의료·교통 인프라는 상대적으로 부족하다." }
+  };
+
+  function getColor(n) {
+    return n > 35000 ? '#084594' : n > 25500 ? '#2171b5' : n > 23000 ? '#4292c6' : n > 0 ? '#9ecae1' : '#d4dbe8';
+  }
+
+  function tipHTML(name) {
+    const d = areaData[name];
+    if (!d) return `<div class="tip-box"><h4>${name}</h4><p>데이터 없음</p></div>`;
+    return `<div class="tip-box"><h4>${name}</h4><table>
+      <tr><td>독거노인 수</td><td>${d.elderly}</td></tr>
+      <tr><td>병원 수</td><td>${d.hospital}</td></tr>
+      <tr><td>약국 수</td><td>${d.pharmacy}</td></tr>
+      <tr><td>노인복지시설</td><td>${d.welfare}</td></tr>
+      <tr><td>지하철역 수</td><td>${d.subway}</td></tr>
+    </table><hr><div class="tip-analysis"><b>분석</b>${d.analysis}</div></div>`;
+  }
+
+  const elMap = L.map("elderly-map").setView([37.5665, 126.9780], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(elMap);
+
+  function defStyle(f) {
+    const d = areaData[f.properties.name];
+    return { fillColor: d ? getColor(d.elderlyNum) : '#d4dbe8', fillOpacity: d ? 0.78 : 0.35, color: '#fff', weight: 1.5 };
+  }
+  function hiStyle(f) {
+    const d = areaData[f.properties.name];
+    return { fillColor: d ? getColor(d.elderlyNum) : '#bbb', fillOpacity: d ? 0.95 : 0.55, color: '#333', weight: 2.5 };
+  }
+
+  fetch("https://cdn.jsdelivr.net/gh/southkorea/southkorea-maps@master/kostat/2018/json/skorea-municipalities-2018-geo.json")
+    .then(r => r.json())
+    .then(geo => {
+      const seoulGeo = { type:"FeatureCollection", features: geo.features.filter(f => String(f.properties.code).startsWith("11")) };
+      let gl = L.geoJSON(seoulGeo, {
+        style: defStyle,
+        onEachFeature: (f, lyr) => {
+          lyr.bindTooltip(tipHTML(f.properties.name), { sticky:true, direction:"top", offset:[0,-6], className:"info-tip", opacity:1 });
+          lyr.on("mouseover", () => lyr.setStyle(hiStyle(f)));
+          lyr.on("mouseout",  () => gl.resetStyle(lyr));
+        }
+      }).addTo(elMap);
+    })
+    .catch(() => {
+      document.getElementById("elderly-map").insertAdjacentHTML("afterend",
+        "<p style='color:#c00;margin-top:8px;font-size:0.9rem'>지도 데이터 로드 실패 — 인터넷 연결을 확인해 주세요.</p>");
+    });
+})();
+</script>
+
+<!-- [2] 전체 노인 대비 독거노인 비율 (Plotly vertical bar) -->
+<script>
+(function () {
+  const districts    = ["노원구", "강서구", "송파구", "강북구"];
+  const totalElderly = [101329, 108843, 114865, 71251];
+  const alone        = [36839, 26046, 25889, 20398];
+  const ratio = districts.map((_, i) => Math.round(alone[i] / totalElderly[i] * 1000) / 10);
+
+  const trace = {
+    type: "bar",
+    x: districts,
+    y: ratio,
+    text: ratio.map(v => v + "%"),
+    textposition: "outside",
+    customdata: districts.map((_, i) => [totalElderly[i], alone[i]]),
+    hovertemplate:
+      "<b>%{x}</b><br><br>" +
+      "전체 노인 수: %{customdata[0]:,}명<br>" +
+      "독거노인 수: %{customdata[1]:,}명<br>" +
+      "독거노인 비율: %{y}%" +
+      "<extra></extra>",
+    marker: { color: ["#4c6ef5", "#748ffc", "#91a7ff", "#bac8ff"] }
+  };
+
+  const layout = {
+    xaxis: { title: "" },
+    yaxis: { title: "비율 (%)", range: [0, 40] },
+    plot_bgcolor: "#fff",
+    paper_bgcolor: "#f7f9fc",
+    margin: { l: 60, r: 40, t: 20, b: 60 },
+    height: 400
+  };
+
+  Plotly.newPlot("ratio-chart", [trace], layout, { responsive: true });
+})();
+</script>
+
+<!-- [3] 독거노인 관련 댓글 인식 유형 (Plotly horizontal bar + dropdown) -->
+<script>
+(function () {
+  const data = {
+    "전체": [
+      { type:"노인 개인책임론",     pct:50, example:"젊어서 뭐했냐 / 노후준비 안 한 책임" },
+      { type:"복지 과다·세금 부담", pct:28, example:"젊은 세금으로 준다 / 58만원이면 충분" },
+      { type:"공감·이해",           pct: 9, example:"병원비 때문에 힘들다 / 그 시절은 연금이 없었다" },
+      { type:"정책·제도 논의",      pct: 6, example:"초고령사회 대책 필요" },
+      { type:"기타",                pct: 7, example:"정치 논쟁, 욕설, 잡담" }
+    ],
+    "유튜브 댓글 58개": [
+      { type:"개인 책임론",    pct:41, example:"젊을 때 준비했어야 한다" },
+      { type:"노후 대비 교훈", pct:21, example:"노후 준비가 중요하다" },
+      { type:"공감·동정",      pct:17, example:"힘들겠다 / 안타깝다" },
+      { type:"복지·제도 논의", pct:14, example:"복지 제도 개선 필요" },
+      { type:"자녀 책임론",    pct: 7, example:"자녀가 책임져야 한다" }
+    ],
+    "유튜브 댓글 96개": [
+      { type:"공감·미래 불안",     pct:36, example:"내 미래 같다 / 남의 일이 아니다" },
+      { type:"노후 대비 교훈",     pct:25, example:"저축, 재테크, 연금 준비 필요" },
+      { type:"존엄사·안락사 찬성", pct:13, example:"존엄사 제도 필요" },
+      { type:"복지·정책 논의",     pct:10, example:"정부 지원 확대 필요" },
+      { type:"가족·자녀 책임론",   pct: 8, example:"가족 관계 문제" },
+      { type:"기타",               pct: 8, example:"단순 감상, 정치 의견 등" }
+    ],
+    "네이트판 댓글 11개": [
+      { type:"결혼해도 독거노인 가능", pct:64, example:"결혼해도 독거노인 되던데 / 자식 있어도 찾아오지 않는다" },
+      { type:"가족관계·자녀 문제",    pct:18, example:"가족이 외면할 정도의 문제가 있었을 수 있다" },
+      { type:"노후 준비 중요",        pct: 9, example:"노후 준비 열심히 해야죠" },
+      { type:"개인 책임론",           pct: 9, example:"배우자와 자식이 외면할 정도의 성격 문제" }
+    ]
+  };
+
+  const keys = Object.keys(data);
+  const sel  = document.getElementById("comments-source");
+  keys.forEach(k => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = k;
+    sel.appendChild(o);
+  });
+
+  function render(key) {
+    const rows = [...data[key]].reverse();
+    const trace = {
+      type: "bar", orientation: "h",
+      x: rows.map(r => r.pct),
+      y: rows.map(r => r.type),
+      text: rows.map(r => r.pct + "%"),
+      textposition: "outside",
+      customdata: rows.map(r => r.example),
+      hovertemplate: "<b>%{y}</b><br><br>비율: %{x}%<br>내용 예시: %{customdata}<extra></extra>",
+      marker: { color: rows.map((_, i) => `hsl(${220 + i * 30}, 65%, ${55 - i * 4}%)`) }
+    };
+    const layout = {
+      title: { text: key + " 댓글 인식 유형", font: { size:15, family:"Noto Sans KR, sans-serif" } },
+      xaxis: { title:"비율 (%)", range:[0, 75] },
+      yaxis: { title:"" },
+      margin: { l:200, r:60, t:50, b:50 },
+      plot_bgcolor: "#fff",
+      paper_bgcolor: "#f7f9fc",
+      height: Math.max(300, rows.length * 68 + 120)
+    };
+    Plotly.react("comments-chart", [trace], layout, { responsive: true });
+  }
+
+  render(keys[0]);
+  sel.addEventListener("change", () => render(sel.value));
+})();
+</script>
+
+</body>
+</html>
